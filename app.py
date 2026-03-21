@@ -31,10 +31,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-import gdown
+import requests
 import os
 
 def download_models_if_needed():
+    import requests
     os.makedirs('models', exist_ok=True)
 
     models_info = {
@@ -43,33 +44,47 @@ def download_models_if_needed():
         'InceptionV3': '1g358xYITced26AohwtzNK_inNiFmGW0l'
     }
 
+    def download_file_from_google_drive(file_id, destination):
+        session  = requests.Session()
+        url      = f"https://drive.google.com/uc?export=download&id={file_id}"
+        response = session.get(url, stream=True)
+
+        # Handle virus scan warning page
+        token = None
+        for key, value in response.cookies.items():
+            if key.startswith('download_warning'):
+                token = value
+                break
+
+        if token:
+            url      = f"https://drive.google.com/uc?export=download&confirm={token}&id={file_id}"
+            response = session.get(url, stream=True)
+
+        # Write file
+        with open(destination, 'wb') as f:
+            for chunk in response.iter_content(32768):
+                if chunk:
+                    f.write(chunk)
+
+        return os.path.getsize(destination)
+
     for name, file_id in models_info.items():
         path = f'models/{name}.weights.h5'
-        if not os.path.exists(path):
-            st.warning(f'Downloading {name} model... this may take a few minutes')
-            try:
-                # Method 1 - gdown direct
-                url = f'https://drive.google.com/uc?id={file_id}&export=download&confirm=t'
-                gdown.download(url, path, quiet=False, fuzzy=True)
-
-                if os.path.exists(path) and os.path.getsize(path) > 1000:
-                    st.success(f'{name} downloaded successfully!')
-                else:
-                    # Method 2 - gdown with different format
-                    os.remove(path) if os.path.exists(path) else None
-                    gdown.download(
-                        id      = file_id,
-                        output  = path,
-                        quiet   = False
-                    )
-                    st.success(f'{name} ready!')
-
-            except Exception as e:
-                st.error(f'Failed to download {name}: {str(e)}')
-
+        if not os.path.exists(path) or os.path.getsize(path) < 1000:
+            with st.spinner(f'Downloading {name} model... please wait'):
+                try:
+                    size = download_file_from_google_drive(file_id, path)
+                    size_mb = size / (1024*1024)
+                    if size_mb > 1:
+                        st.success(f'{name} downloaded! ({size_mb:.1f} MB)')
+                    else:
+                        st.error(f'{name} download failed — file too small')
+                        os.remove(path)
+                except Exception as e:
+                    st.error(f'{name} error: {str(e)}')
         else:
-            size = os.path.getsize(path) / (1024*1024)
-            st.sidebar.success(f'{name} ready ({size:.1f} MB)')
+            size_mb = os.path.getsize(path) / (1024*1024)
+            st.sidebar.success(f'{name} ready ({size_mb:.1f} MB)')
 
 download_models_if_needed()
 
