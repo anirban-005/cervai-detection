@@ -182,11 +182,14 @@ def load_all_models():
 
     def build_and_load(model_name, weights_path):
         if model_name == 'VGG16':
-            base = VGG16(weights=None, include_top=False, input_shape=(224, 224, 3), pooling='avg')
+            base = VGG16(weights=None, include_top=False,
+                         input_shape=(224, 224, 3), pooling='avg')
         elif model_name == 'ResNet50':
-            base = ResNet50(weights=None, include_top=False, input_shape=(224, 224, 3), pooling='avg')
+            base = ResNet50(weights=None, include_top=False,
+                            input_shape=(224, 224, 3), pooling='avg')
         else:
-            base = InceptionV3(weights=None, include_top=False, input_shape=(299, 299, 3), pooling='avg')
+            base = InceptionV3(weights=None, include_top=False,
+                               input_shape=(299, 299, 3), pooling='avg')
         x = base.output
         x = BatchNormalization()(x)
         x = Dense(512, activation='relu', kernel_regularizer=l2(0.001))(x)
@@ -195,20 +198,31 @@ def load_all_models():
         x = Dropout(0.3)(x)
         output = Dense(5, activation='softmax')(x)
         model = Model(inputs=base.input, outputs=output)
+
+        # Show model layer count before loading
+        st.sidebar.info(model_name + ' layers: ' + str(len(model.layers)))
+
         model.load_weights(weights_path)
-        model.compile(optimizer=tf.keras.optimizers.Adam(1e-4), loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(1e-4),
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
         return model
 
     models = {}
     for name in MODEL_NAMES:
         weights_path = 'models/' + name + '.weights.h5'
         if os.path.exists(weights_path):
+            size_mb = os.path.getsize(weights_path) / (1024*1024)
+            st.sidebar.info(name + ' file: ' + str(round(size_mb, 1)) + ' MB')
             try:
                 models[name] = build_and_load(name, weights_path)
+                st.sidebar.success(name + ' loaded OK!')
             except Exception as e:
-                st.sidebar.error(name + ' failed: ' + str(e)[:80])
+                st.sidebar.error(name + ' FAILED: ' + str(e)[:150])
         else:
-            st.sidebar.warning(name + ' weights not found!')
+            st.sidebar.error(name + ' FILE NOT FOUND at ' + weights_path)
     return models
 
 
