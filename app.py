@@ -1,6 +1,4 @@
 # app.py — AI Cervical Cancer Detection System
-# Save this file as app.py in the same folder as your models/
-
 import streamlit as st
 import numpy as np
 import cv2
@@ -8,6 +6,7 @@ import os
 import io
 import json
 import smtplib
+import requests
 import tempfile
 from PIL import Image
 from datetime import datetime
@@ -30,12 +29,16 @@ matplotlib.use('Agg')
 import warnings
 warnings.filterwarnings('ignore')
 
+# PAGE CONFIG MUST BE FIRST
+st.set_page_config(
+    page_title    = "CervAI - Cancer Detection System",
+    page_icon     = "🔬",
+    layout        = "wide",
+    initial_sidebar_state = "expanded"
+)
 
-import requests
-import os
-
+# MODEL DOWNLOAD FUNCTION
 def download_models_if_needed():
-    import requests
     os.makedirs('models', exist_ok=True)
 
     models_info = {
@@ -44,48 +47,71 @@ def download_models_if_needed():
         'InceptionV3': '1g358xYITced26AohwtzNK_inNiFmGW0l'
     }
 
-    def download_file_from_google_drive(file_id, destination):
+    def download_from_gdrive(file_id, dest):
         session  = requests.Session()
+
+        # First request
         url      = f"https://drive.google.com/uc?export=download&id={file_id}"
         response = session.get(url, stream=True)
 
-        # Handle virus scan warning page
+        # Check for confirmation token
         token = None
         for key, value in response.cookies.items():
             if key.startswith('download_warning'):
                 token = value
                 break
 
+        # Second request with token if needed
         if token:
             url      = f"https://drive.google.com/uc?export=download&confirm={token}&id={file_id}"
             response = session.get(url, stream=True)
 
-        # Write file
-        with open(destination, 'wb') as f:
-            for chunk in response.iter_content(32768):
+        # Also try with confirm=t
+        if response.status_code != 200 or 'text/html' in response.headers.get('Content-Type',''):
+            url      = f"https://drive.google.com/uc?export=download&confirm=t&id={file_id}"
+            response = session.get(url, stream=True)
+
+        total = 0
+        with open(dest, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=32768):
                 if chunk:
                     f.write(chunk)
+                    total += len(chunk)
+        return total
 
-        return os.path.getsize(destination)
-
+    all_ready = True
     for name, file_id in models_info.items():
         path = f'models/{name}.weights.h5'
-        if not os.path.exists(path) or os.path.getsize(path) < 1000:
-            with st.spinner(f'Downloading {name} model... please wait'):
-                try:
-                    size = download_file_from_google_drive(file_id, path)
-                    size_mb = size / (1024*1024)
-                    if size_mb > 1:
-                        st.success(f'{name} downloaded! ({size_mb:.1f} MB)')
-                    else:
-                        st.error(f'{name} download failed — file too small')
-                        os.remove(path)
-                except Exception as e:
-                    st.error(f'{name} error: {str(e)}')
-        else:
-            size_mb = os.path.getsize(path) / (1024*1024)
-            st.sidebar.success(f'{name} ready ({size_mb:.1f} MB)')
 
+        if os.path.exists(path):
+            size_mb = os.path.getsize(path) / (1024*1024)
+            if size_mb > 1:
+                st.sidebar.success(f'{name}: {size_mb:.1f} MB')
+                continue
+            else:
+                os.remove(path)
+
+        all_ready = False
+        progress_text = st.empty()
+        progress_text.info(f'Downloading {name}... please wait (this takes 2-5 minutes)')
+
+        try:
+            total_bytes = download_from_gdrive(file_id, path)
+            size_mb     = total_bytes / (1024*1024)
+
+            if size_mb > 1:
+                progress_text.success(f'{name} downloaded! ({size_mb:.1f} MB)')
+            else:
+                progress_text.error(f'{name} download failed - only {size_mb:.2f} MB')
+                if os.path.exists(path):
+                    os.remove(path)
+
+        except Exception as e:
+            progress_text.error(f'{name} error: {str(e)[:100]}')
+
+    return all_ready
+
+# Run download
 download_models_if_needed()
 
 
