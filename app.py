@@ -123,11 +123,10 @@ def download_models_if_needed():
         path = 'models/' + name + '.weights.h5'
         if os.path.exists(path):
             size_mb = os.path.getsize(path) / (1024*1024)
-            # Delete if file size does not match expected
-            expected = {'VGG16': 50, 'ResNet50': 88, 'InceptionV3': 80}
-            if size_mb < expected.get(name, 50):
+            # Delete if file size is too small (less than 40MB indicates corruption)
+            if size_mb < 40:
                 os.remove(path)
-                st.sidebar.warning(name + ' old file deleted - redownloading')
+                st.sidebar.warning(name + ' corrupted file deleted - redownloading')
 
     models_info = {
         'VGG16': '1MJFdFH1ulb2Oz26_1hYiD_OPeu1w4RcC',
@@ -162,17 +161,31 @@ def download_models_if_needed():
         path = 'models/' + name + '.weights.h5'
         if os.path.exists(path):
             size_mb = os.path.getsize(path) / (1024 * 1024)
-            if size_mb > 1:
-                st.sidebar.success(name + ': ' + str(round(size_mb, 1)) + ' MB ready')
-                continue
-            else:
+            # Check if file looks valid (HDF5 files start with specific bytes)
+            try:
+                with open(path, 'rb') as f:
+                    header = f.read(8)
+                    is_valid_hdf5 = header.startswith(b'\x89HDF\r\n\x1a\n')
+                if is_valid_hdf5 and size_mb > 40:
+                    st.sidebar.success(name + ': ' + str(round(size_mb, 1)) + ' MB ready')
+                    continue
+                else:
+                    st.sidebar.warning(name + ' file is invalid - redownloading')
+                    os.remove(path)
+            except Exception as e:
+                st.sidebar.warning(name + ' file check failed - redownloading')
                 os.remove(path)
+        
         msg = st.empty()
         msg.info('Downloading ' + name + ' model... please wait')
         try:
             total_bytes = download_from_gdrive(file_id, path)
             size_mb = total_bytes / (1024 * 1024)
-            if size_mb > 1:
+            # Verify downloaded file is valid
+            with open(path, 'rb') as f:
+                header = f.read(8)
+                is_valid = header.startswith(b'\x89HDF\r\n\x1a\n')
+            if is_valid and size_mb > 40:
                 msg.success(name + ' downloaded! (' + str(round(size_mb, 1)) + ' MB)')
             else:
                 msg.error(name + ' download failed')
@@ -233,6 +246,12 @@ def load_all_models():
                 st.sidebar.success(name + ' loaded OK!')
             except Exception as e:
                 st.sidebar.error(name + ' FAILED: ' + str(e)[:150])
+                # Delete corrupted file so it gets re-downloaded
+                try:
+                    os.remove(weights_path)
+                    st.sidebar.warning(name + ' corrupted - will redownload next run')
+                except:
+                    pass
         else:
             st.sidebar.error(name + ' FILE NOT FOUND at ' + weights_path)
     return models
