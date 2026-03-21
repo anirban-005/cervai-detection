@@ -526,16 +526,16 @@ def predict_image(image_pil, model_choice, trained_models):
     confidence  = float(final_probs[pred_idx]) * 100
 
     return {
-        'class_name' : cls_name,
-        'class_disp' : CLASS_DISPLAY[pred_idx],
-        'stage'      : STAGE_MAP[cls_name],
-        'risk'       : RISK_MAP[cls_name][0],
-        'risk_class' : RISK_MAP[cls_name][1],
-        'risk_color' : RISK_MAP[cls_name][2],
-        'confidence' : confidence,
-        'all_probs'  : final_probs,
-        'pred_idx'   : pred_idx
-    }
+    'class_name' : cls_name,
+    'class_disp' : CLASS_DISPLAY[pred_idx],
+    'stage'      : STAGE_MAP[cls_name],
+    'risk'       : RISK_MAP[cls_name][0],
+    'risk_class' : RISK_MAP[cls_name][1],
+    'risk_color' : RISK_MAP[cls_name][2],
+    'confidence' : confidence,
+    'all_probs'  : final_probs,
+    'pred_idx'   : int(pred_idx)
+}
 
 
 # ─── GRAD-CAM ──────────────────────────────────────────────────
@@ -1168,12 +1168,15 @@ with tab1:
 
                     # Grad-CAM
                     gc_model = model_key if model_key != 'Ensemble' else 'VGG16'
-                    gradcam  = generate_gradcam(
-                        image_pil, gc_model,
-                        trained_models, prediction['pred_idx']
-                    )
+                    if prediction is not None:
+                        gradcam = generate_gradcam(
+                            image_pil, gc_model,
+                            trained_models, int(prediction['pred_idx'])
+                        )
+                    else:
+                        gradcam = None
 
-                # Results display
+                    # Results display
                 st.markdown(f"""
                 <div class='glass-card fade-in'>
                     <div style='text-align:center; margin-bottom:1rem;'>
