@@ -46,12 +46,30 @@ def download_models_if_needed():
     for name, file_id in models_info.items():
         path = f'models/{name}.weights.h5'
         if not os.path.exists(path):
-            st.info(f'Downloading {name} model... please wait')
-            gdown.download(
-                f'https://drive.google.com/uc?id={file_id}',
-                path, quiet=False
-            )
-            st.success(f'{name} ready!')
+            st.warning(f'Downloading {name} model... this may take a few minutes')
+            try:
+                # Method 1 - gdown direct
+                url = f'https://drive.google.com/uc?id={file_id}&export=download&confirm=t'
+                gdown.download(url, path, quiet=False, fuzzy=True)
+
+                if os.path.exists(path) and os.path.getsize(path) > 1000:
+                    st.success(f'{name} downloaded successfully!')
+                else:
+                    # Method 2 - gdown with different format
+                    os.remove(path) if os.path.exists(path) else None
+                    gdown.download(
+                        id      = file_id,
+                        output  = path,
+                        quiet   = False
+                    )
+                    st.success(f'{name} ready!')
+
+            except Exception as e:
+                st.error(f'Failed to download {name}: {str(e)}')
+
+        else:
+            size = os.path.getsize(path) / (1024*1024)
+            st.sidebar.success(f'{name} ready ({size:.1f} MB)')
 
 download_models_if_needed()
 
