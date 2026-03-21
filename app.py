@@ -206,15 +206,17 @@ def load_all_models():
     from tensorflow.keras.regularizers import l2
 
     def build_and_load(model_name, weights_path):
+        # Build model with EXACT same architecture as training
         if model_name == 'VGG16':
             base = VGG16(weights=None, include_top=False,
                          input_shape=(224, 224, 3), pooling='avg')
         elif model_name == 'ResNet50':
             base = ResNet50(weights=None, include_top=False,
                             input_shape=(224, 224, 3), pooling='avg')
-        else:
+        else:  # InceptionV3
             base = InceptionV3(weights=None, include_top=False,
                                input_shape=(299, 299, 3), pooling='avg')
+        
         x = base.output
         x = BatchNormalization()(x)
         x = Dense(512, activation='relu', kernel_regularizer=l2(0.001))(x)
@@ -226,8 +228,15 @@ def load_all_models():
 
         # Show model layer count before loading
         st.sidebar.info(model_name + ' layers: ' + str(len(model.layers)))
-
-        model.load_weights(weights_path)
+        
+        # Try loading weights with error handling
+        try:
+            model.load_weights(weights_path)
+            st.sidebar.success(model_name + ' weights loaded successfully!')
+        except Exception as e:
+            st.sidebar.error(f"{model_name} weight loading failed: {str(e)[:150]}")
+            raise e  # 🔥 VERY IMPORTANT - re-raise the exception
+        
         model.compile(
             optimizer=tf.keras.optimizers.Adam(1e-4),
             loss='categorical_crossentropy',
@@ -243,9 +252,9 @@ def load_all_models():
             st.sidebar.info(name + ' file: ' + str(round(size_mb, 1)) + ' MB')
             try:
                 models[name] = build_and_load(name, weights_path)
-                st.sidebar.success(name + ' loaded OK!')
+                st.sidebar.success('✅ ' + name + ' loaded OK!')
             except Exception as e:
-                st.sidebar.error(name + ' FAILED: ' + str(e)[:150])
+                st.sidebar.error('❌ ' + name + ' FAILED: ' + str(e)[:150])
                 # Delete corrupted file so it gets re-downloaded
                 try:
                     os.remove(weights_path)
@@ -253,7 +262,10 @@ def load_all_models():
                 except:
                     pass
         else:
-            st.sidebar.error(name + ' FILE NOT FOUND at ' + weights_path)
+            st.sidebar.error('❌ ' + name + ' FILE NOT FOUND at ' + weights_path)
+    
+    # 🔥 DEBUG: Show which models were successfully loaded
+    st.sidebar.info(f"Loaded models: {list(models.keys())}")
     return models
 
 
@@ -268,13 +280,21 @@ def get_preprocess_fn(model_name):
 
 
 def predict_image(image_pil, model_choice, trained_models):
+    # 🔥 Fix 4: Protect against empty models
+    if len(trained_models) == 0:
+        st.error("❌ No models loaded properly. Please check the sidebar for errors and restart the app.")
+        st.stop()
+    
     if not trained_models:
         st.error("No models loaded!")
         return None
+    
     all_probs = []
     models_to_use = MODEL_NAMES if model_choice == 'Ensemble' else [model_choice]
+    
     for model_name in models_to_use:
         if model_name not in trained_models:
+            st.warning(f"{model_name} not available, skipping...")
             continue
         try:
             model = trained_models[model_name]
@@ -283,18 +303,27 @@ def predict_image(image_pil, model_choice, trained_models):
             img = cv2.resize(img, img_size)
             img_pre = preprocess_fn(img.astype(np.float32))
             img_exp = np.expand_dims(img_pre, 0)
-            probs = model.predict(img_exp, verbose=0)[0]
+            
+            # 🔥 Fix 3: Ensure correct prediction shape
+            probs = model.predict(img_exp, verbose=0)
+            probs = np.squeeze(probs)  # Remove any singleton dimensions
             all_probs.append(np.array(probs, dtype=np.float32))
         except Exception as e:
-            st.warning(model_name + ' prediction failed: ' + str(e)[:50])
+            st.warning(f"{model_name} prediction failed: {str(e)[:50]}")
             continue
+    
     if len(all_probs) == 0:
         st.error("All predictions failed!")
         return None
-    final_probs = np.mean(all_probs, axis=0).flatten()
+    
+    # 🔥 Fix 3: Handle shape properly
+    final_probs = np.mean(all_probs, axis=0)
+    # Ensure it's 1D
+    final_probs = final_probs.flatten()
     pred_idx = int(np.argmax(final_probs))
     cls_name = CLASS_NAMES[pred_idx]
     confidence = float(final_probs[pred_idx]) * 100
+    
     return {
         'class_name': cls_name,
         'class_disp': CLASS_DISPLAY[pred_idx],
