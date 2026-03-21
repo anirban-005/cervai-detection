@@ -2,7 +2,7 @@ streamlit
 tensorflow-cpu==2.17.0
 opencv-python-headless
 Pillow
-numpy
+numpy==1.26.4
 reportlab
 fpdf2
 scikit-learn
