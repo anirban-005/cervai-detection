@@ -1166,17 +1166,19 @@ with tab1:
                         image_pil, model_key, trained_models
                     )
 
-                    # Grad-CAM
-                    gc_model = model_key if model_key != 'Ensemble' else 'VGG16'
+                    gradcam = None
                     if prediction is not None:
-                        gradcam = generate_gradcam(
+                        gc_model = model_key if model_key != 'Ensemble' else 'VGG16'
+                        gradcam  = generate_gradcam(
                             image_pil, gc_model,
                             trained_models, int(prediction['pred_idx'])
                         )
-                    else:
-                        gradcam = None
 
-                    # Results display
+                if prediction is None:
+                    st.error("Models not loaded yet. Please wait and try again.")
+                    st.stop()
+                
+                # Results display
                 st.markdown(f"""
                 <div class='glass-card fade-in'>
                     <div style='text-align:center; margin-bottom:1rem;'>
