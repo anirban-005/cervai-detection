@@ -516,10 +516,14 @@ def predict_image(image_pil, model_choice, trained_models):
         probs = model.predict(img_exp, verbose=0)[0]
         all_probs.append(probs)
 
+    if len(all_probs) == 0:
+        st.error("No models loaded! Check model files.")
+        return None
+
     final_probs = np.mean(all_probs, axis=0)
-    pred_idx    = np.argmax(final_probs)
+    pred_idx    = int(np.argmax(final_probs))
     cls_name    = CLASS_NAMES[pred_idx]
-    confidence  = final_probs[pred_idx] * 100
+    confidence  = float(final_probs[pred_idx]) * 100
 
     return {
         'class_name' : cls_name,
