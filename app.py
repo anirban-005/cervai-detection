@@ -117,6 +117,18 @@ st.markdown("""
 
 def download_models_if_needed():
     os.makedirs('models', exist_ok=True)
+
+    # Force delete old wrong files
+    for name in ['VGG16', 'ResNet50', 'InceptionV3']:
+        path = 'models/' + name + '.weights.h5'
+        if os.path.exists(path):
+            size_mb = os.path.getsize(path) / (1024*1024)
+            # Delete if file size does not match expected
+            expected = {'VGG16': 50, 'ResNet50': 88, 'InceptionV3': 80}
+            if size_mb < expected.get(name, 50):
+                os.remove(path)
+                st.sidebar.warning(name + ' old file deleted - redownloading')
+
     models_info = {
         'VGG16': '1MJFdFH1ulb2Oz26_1hYiD_OPeu1w4RcC',
         'ResNet50': '1m8NV9yrHdsVoOq51VlkQ3yYJLY7odXf4',
