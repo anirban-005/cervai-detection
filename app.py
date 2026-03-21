@@ -42,9 +42,9 @@ def download_models_if_needed():
     os.makedirs('models', exist_ok=True)
 
     models_info = {
-        'VGG16'      : '1yKv7Sg5CyRNEZMOEcx_URSX72d3ELwh5',
-        'ResNet50'   : '1Ps2tsZcHh1E69cmx40ukeItqv6kPQ5yP',
-        'InceptionV3': '1g358xYITced26AohwtzNK_inNiFmGW0l'
+        'VGG16'      : '1MJFdFH1ulb2Oz26_1hYiD_OPeu1w4RcC',
+        'ResNet50'   : '1m8NV9yrHdsVoOq51VlkQ3yYJLY7odXf4',
+        'InceptionV3': '1JDGfbMxODBPVlSeL7qxjafrqzEuui2Ip'
     }
 
     def download_from_gdrive(file_id, dest):
