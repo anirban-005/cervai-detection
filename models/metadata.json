@@ -1,0 +1,51 @@
+{
+  "best_model": "Ensemble",
+  "class_names": [
+    "im_Dyskeratotic",
+    "im_Koilocytotic",
+    "im_Metaplastic",
+    "im_Parabasal",
+    "im_Superficial-Intermediate"
+  ],
+  "class_display": [
+    "Dyskeratotic",
+    "Koilocytotic",
+    "Metaplastic",
+    "Parabasal",
+    "Superficial-Intermediate"
+  ],
+  "stage_map": {
+    "im_Dyskeratotic": "Stage 3 - Severe Dysplasia (CIN III)",
+    "im_Koilocytotic": "Stage 2 - Moderate Dysplasia (CIN II)",
+    "im_Metaplastic": "Stage 1 - Mild Dysplasia (CIN I)",
+    "im_Parabasal": "Stage 4 - Possible Malignancy",
+    "im_Superficial-Intermediate": "Stage 0 - Normal"
+  },
+  "model_names": [
+    "VGG16",
+    "ResNet50",
+    "InceptionV3"
+  ],
+  "results": {
+    "VGG16": {
+      "accuracy": 0.96875,
+      "auc": 0.9975198666427983,
+      "kappa": 0.9609349637485121
+    },
+    "ResNet50": {
+      "accuracy": 0.9539473684210527,
+      "auc": 0.9950152494524434,
+      "kappa": 0.9424273578269574
+    },
+    "InceptionV3": {
+      "accuracy": 0.9292763157894737,
+      "auc": 0.9922319370373593,
+      "kappa": 0.9115770960868536
+    },
+    "Ensemble": {
+      "accuracy": 0.9720394736842105,
+      "auc": 0.9968624287063076,
+      "kappa": 0.9650461272082894
+    }
+  }
+}
